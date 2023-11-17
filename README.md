@@ -1,5 +1,5 @@
 # CMakeAuto
-## A tool to simplify CMake Toolchain Commands
+A tool to simplify CMake Toolchain Commands
 
 ### Usage:
 ```bash
