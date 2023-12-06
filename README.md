@@ -32,3 +32,8 @@ Templates:
 cmake -S . -B build -A x64
 cmake --build build --config Release
 ```
+
+### Build with CMakeAuto
+```bash
+cmakeauto build -s .
+```
