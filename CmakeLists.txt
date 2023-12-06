@@ -10,3 +10,7 @@ include_directories(../include/)
 
 # add c/cpp
 add_executable(cmakeauto cmakeauto.c cmakeautoargs.c)
+
+file(REMOVE_RECURSE ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/templates/)
+file(GLOB TEMPLATE_FILES "templates/*")
+file(COPY ${TEMPLATE_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/templates/)

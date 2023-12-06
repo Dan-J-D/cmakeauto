@@ -22,6 +22,8 @@ typedef enum
 
 	CMAKE_AUTO_ACTION_BUILD,
 	CMAKE_AUTO_ACTION_HELP,
+	CMAKE_AUTO_ACTION_CONFIGURE,
+	CMAKE_AUTO_ACTION_TEMPLATE,
 } CMakeAutoAction;
 
 typedef enum
@@ -56,6 +58,7 @@ typedef struct
 	char builddir[FILE_MAX_PATH];
 	char srcdir[FILE_MAX_PATH];
 	char generator[GERNERATOR_MAX_LEN];
+	char *template;
 	char *extra_init_args;
 	char *extra_build_args;
 
@@ -77,6 +80,16 @@ void cma_print_usage();
  * @return false if failed
  */
 bool cma_abspath(char *buf, size_t size, const char *path);
+
+void cma_iterate_dir(const char *abspath,
+										 const char *relpath, // default should be "./"
+										 void *userdata,
+										 bool should_iter_sub_folder,
+										 bool (*callback)(const char *abspath, // return false to stop iterating
+																			const char *relpath,
+																			const char *name,
+																			bool isfolder /* 0 = file, 1 = folder */,
+																			void *userdata));
 
 /**
  * @brief Creates a process
