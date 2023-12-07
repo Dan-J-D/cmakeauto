@@ -31,15 +31,10 @@ void cma_print_usage()
 
 	char buf[FILE_MAX_PATH + 1];
 	memset(buf, 0, FILE_MAX_PATH + 1);
-#ifdef _WIN32
-	GetModuleFileNameA(NULL, buf, FILE_MAX_PATH);
-	if (!strlen(buf))
+	if (!cma_get_current_process_absfilepath(buf, FILE_MAX_PATH) || !strlen(buf))
 		return;
-	strrchr(buf, '\\')[1] = 0;
+	strrchr(buf, FILE_SEPERATOR_CHAR)[1] = 0;
 	strcat_s(buf, FILE_MAX_PATH, "templates");
-#else
-#error unsupported platform
-#endif
 
 	printf("\nTemplates:\n");
 	cma_iterate_dir(buf, ".", 0, false, print_templates);
@@ -57,11 +52,17 @@ bool cma_parse_args(int argc, char **argv, CMakeAutoConfig *config)
 	{
 		config->action = CMAKE_AUTO_ACTION_BUILD;
 		config->mode = CMAKE_AUTO_MODE_RELEASE;
-		config->arch = CMAKE_AUTO_ARCH_X64;
-		if (!cma_abspath(config->builddir, FILE_MAX_PATH, "build"))
+		config->arch = CMAKE_AUTO_ARCH_UNKONWN;
+
+		if (!cma_abspath(config->builddir, FILE_MAX_PATH, "."))
 			memset(config->builddir, 0, FILE_MAX_PATH);
-		if (!cma_abspath(config->srcdir, FILE_MAX_PATH, "src"))
+		else
+			strcat_s(config->builddir, FILE_MAX_PATH, FILE_SEPERATOR "build");
+
+		if (!cma_abspath(config->srcdir, FILE_MAX_PATH, "."))
 			memset(config->srcdir, 0, FILE_MAX_PATH);
+		else
+			strcat_s(config->srcdir, FILE_MAX_PATH, FILE_SEPERATOR "src");
 
 		for (int i = 2; i < argc; i++)
 		{
@@ -188,8 +189,7 @@ bool cma_parse_args(int argc, char **argv, CMakeAutoConfig *config)
 		if (!config->builddir ||
 				!config->srcdir ||
 				config->mode == CMAKE_AUTO_MODE_UNKNOWN ||
-				config->action == CMAKE_AUTO_ACTION_UNKNOWN ||
-				config->arch == CMAKE_AUTO_ARCH_UNKONWN)
+				config->action == CMAKE_AUTO_ACTION_UNKNOWN)
 		{
 			printf("invalid build arguments\n");
 			return false;

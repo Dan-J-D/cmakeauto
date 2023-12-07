@@ -9,12 +9,55 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+
 #define FILE_MAX_PATH _MAX_PATH
+#define FILE_SEPERATOR "\\"
+#define FILE_SEPERATOR_CHAR '\\'
+#elif __linux__
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <errno.h>
+
+#define FILE_MAX_PATH PATH_MAX
+#define FILE_SEPERATOR "/"
+#define FILE_SEPERATOR_CHAR '/'
 #else
 #error unsupported platform
 #endif
 
 #define GERNERATOR_MAX_LEN 64
+
+#ifdef __linux__
+#define stricmp strcasecmp
+
+bool strcpy_s(
+		char *_Destination,
+		unsigned long long _SizeInBytes,
+		char const *_Source);
+
+bool strcat_s(
+		char *_Destination,
+		unsigned long long _SizeInBytes,
+		char const *_Source);
+
+bool memcpy_s(
+		void *const _Destination,
+		unsigned long long const _DestinationSize,
+		void const *const _Source,
+		unsigned long long const _SourceSize);
+
+int sprintf_s(
+		char *const _Buffer,
+		unsigned long long const _BufferCount,
+		char const *const _Format,
+		...);
+
+#endif
 
 typedef enum
 {
@@ -80,6 +123,11 @@ void cma_print_usage();
  * @return false if failed
  */
 bool cma_abspath(char *buf, size_t size, const char *path);
+bool cma_create_dir_include_existing(const char *path);
+bool cma_file_exists(const char *path);
+bool cma_copy_file(const char *src, const char *dst);
+bool cma_get_current_process_absfilepath(char *buf, size_t size);
+bool cma_get_workdir(char *buf, size_t size);
 
 void cma_iterate_dir(const char *abspath,
 										 const char *relpath, // default should be "./"
@@ -104,6 +152,7 @@ void cma_iterate_dir(const char *abspath,
  */
 bool cma_create_process(char *filename,
 												char *cmdline,
+												char *posix_args[], // Only used on Linux otherwise NULL
 												char *workdir,
 												void **processhandle,
 												unsigned int *pid);
