@@ -325,7 +325,12 @@ bool cma_init_proj(CMakeAutoConfig *config)
 
 	printf("> ");
 	for (int i = 0; i < (sizeof(args) / sizeof(args[0])) - 1; i++)
-		printf("%s ", args[i]);
+	{
+		if (args[i] == cmdline)
+			printf("\"%s\" ", cmdline);
+		else
+			printf("%s ", args[i]);
+	}
 	printf("\n");
 
 	int exit_code = 0;
@@ -389,7 +394,12 @@ bool cma_build(CMakeAutoConfig *config)
 
 	printf("> ");
 	for (int i = 0; i < (sizeof(args) / sizeof(args[0])) - 1; i++)
-		printf("%s ", args[i]);
+	{
+		if (args[i] == cmdline)
+			printf("\"%s\" ", cmdline);
+		else
+			printf("%s ", args[i]);
+	}
 	printf("\n");
 
 	int exit_code = 0;
