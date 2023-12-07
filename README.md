@@ -23,6 +23,7 @@ Parameters:
         -eb: (Optional) This specifies extra build params to be passed to cmake.
         -ar: (Optional) This specifies whether to auto reload the project when source files changed.
         -t: (Only for Template Action) This specifies the template to be used when creating a template project.
+				
 Templates:
         helloworld
 ```

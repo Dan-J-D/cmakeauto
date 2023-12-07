@@ -41,7 +41,7 @@ void cma_print_usage()
 #error unsupported platform
 #endif
 
-	printf("Templates:\n");
+	printf("\nTemplates:\n");
 	cma_iterate_dir(buf, ".", 0, false, print_templates);
 }
 
