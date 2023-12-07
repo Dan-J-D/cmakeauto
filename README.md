@@ -3,7 +3,7 @@ A tool to simplify CMake Toolchain Commands
 
 ### Usage:
 ```bash
-Usage: cmakeauto help|build|configure|template -b <build path> -s <source path> [-g <Generator>] [-m <Mode>] [-a <Architecture>] [-ei <Extra Init Params>] [-eb <Extra Build Params>] [-ar] [-t <Template>]
+makeauto help|build|configure|template -b <build path> -s <source path> [-g <Generator>] [-m <Mode>] [-a <Architecture>] [-ei <Extra Init Params>] [-eb <Extra Build Params>] [-w <Directories>] [-t <Template>]
         help: print help message
         build: build project
         configure: configure project
@@ -21,11 +21,12 @@ Parameters:
                 x64: 64-bit
         -ei: (Optional) This specifies extra init params to be passed to cmake.
         -eb: (Optional) This specifies extra build params to be passed to cmake.
-        -ar: (Optional) This specifies whether to auto reload the project when source files changed.
+        -w: (Optional) This specifies the directories to be watched and will auto rebuild if a change was found.
         -t: (Only for Template Action) This specifies the template to be used when creating a template project.
-				
+
 Templates:
         helloworld
+        helloworlddll
 ```
 
 ### Build with CMake For Release X64:

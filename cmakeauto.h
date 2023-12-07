@@ -9,10 +9,13 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#include <fileapi.h>
 
 #define FILE_MAX_PATH _MAX_PATH
 #define FILE_SEPERATOR "\\"
 #define FILE_SEPERATOR_CHAR '\\'
+
+typedef void *watchfolderhandle_t;
 #elif __linux__
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -22,15 +25,25 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/inotify.h>
+
+#ifdef __GNUC__
+#define ALIGNAS(TYPE) __attribute__((aligned(__alignof__(TYPE))))
+#else
+#define ALIGNAS(TYPE) /* empty */
+#endif
 
 #define FILE_MAX_PATH PATH_MAX
 #define FILE_SEPERATOR "/"
 #define FILE_SEPERATOR_CHAR '/'
+
+typedef int watchfolderhandle_t;
 #else
 #error unsupported platform
 #endif
 
 #define GERNERATOR_MAX_LEN 64
+#define WATCHFOLDER_MAX_LEN 64
 
 #ifdef __linux__
 #define stricmp strcasecmp
@@ -105,7 +118,10 @@ typedef struct
 	char *extra_init_args;
 	char *extra_build_args;
 
-	void *watchfolderhandle;
+	char watchfolders[FILE_MAX_PATH + 1][WATCHFOLDER_MAX_LEN];
+	unsigned int watchfolders_count;
+	watchfolderhandle_t *watchfolderhandles;
+	unsigned int watchfolderhandles_count;
 } CMakeAutoConfig;
 
 /**
@@ -125,6 +141,7 @@ void cma_print_usage();
 bool cma_abspath(char *buf, size_t size, const char *path);
 bool cma_create_dir_include_existing(const char *path);
 bool cma_file_exists(const char *path);
+bool cma_folder_exists(const char *path);
 bool cma_copy_file(const char *src, const char *dst);
 bool cma_get_current_process_absfilepath(char *buf, size_t size);
 bool cma_get_workdir(char *buf, size_t size);

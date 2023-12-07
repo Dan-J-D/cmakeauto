@@ -35,6 +35,19 @@ bool cma_file_exists(const char *path)
 #endif
 }
 
+bool cma_folder_exists(const char *path)
+{
+#ifdef _WIN32
+	DWORD attr = GetFileAttributesA(path);
+	return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY);
+#elif __linux__
+	struct stat st = {0};
+	return stat(path, &st) != -1 && S_ISDIR(st.st_mode);
+#else
+#error unsupported platform
+#endif
+}
+
 bool cma_copy_file(const char *src, const char *dst)
 {
 #ifdef _WIN32
@@ -252,22 +265,174 @@ bool cma_create_process(char *filename,
 	return true;
 }
 
+#ifdef __linux__
+bool cma_watch_add_folder_callback(const char *abspath, // return false to stop iterating
+																	 const char *relpath,
+																	 const char *name,
+																	 bool isfolder /* 0 = file, 1 = folder */,
+																	 void *userdata)
+{
+	CMakeAutoConfig *config = (CMakeAutoConfig *)userdata;
+	if (isfolder)
+	{
+		if (config->watchfolderhandles_count >= WATCHFOLDER_MAX_LEN)
+		{
+			printf("max watch folders reached\n");
+			return false;
+		}
+
+		config->watchfolderhandles[config->watchfolderhandles_count] =
+				inotify_add_watch(config->watchfolderhandles[0], abspath, IN_CREATE | IN_MODIFY | IN_DELETE);
+		config->watchfolderhandles_count++;
+	}
+
+	return true;
+}
+
+void cma_watch_remove_all_subfolders(CMakeAutoConfig *config)
+{
+	for (unsigned int i = config->watchfolders_count + 1; i < config->watchfolderhandles_count; i++)
+		inotify_rm_watch(config->watchfolderhandles[0], config->watchfolderhandles[i]);
+	config->watchfolderhandles_count = config->watchfolders_count + 1;
+}
+#endif
+
 bool cma_watch_folder_init(CMakeAutoConfig *config)
 {
-	/* Unimplemented */
-	return false;
+#ifdef _WIN32
+	config->watchfolderhandles_count = config->watchfolders_count;
+	config->watchfolderhandles = (watchfolderhandle_t *)malloc(sizeof(watchfolderhandle_t) * config->watchfolderhandles_count);
+	for (unsigned int i = 0; i < config->watchfolderhandles_count; i++)
+	{
+		config->watchfolderhandles[i] = FindFirstChangeNotificationA(config->watchfolders[i],
+																																 TRUE,
+																																 FILE_NOTIFY_CHANGE_LAST_WRITE |
+																																		 FILE_NOTIFY_CHANGE_CREATION |
+																																		 FILE_NOTIFY_CHANGE_FILE_NAME |
+																																		 FILE_NOTIFY_CHANGE_DIR_NAME);
+		if (config->watchfolderhandles[i] == INVALID_HANDLE_VALUE)
+		{
+			printf("failed to watch folder %s\n", config->srcdir);
+			return false;
+		}
+	}
+
+	return true;
+#elif __linux__
+	config->watchfolderhandles_count = config->watchfolders_count + 1;
+	config->watchfolderhandles = (watchfolderhandle_t *)malloc(sizeof(watchfolderhandle_t) * config->watchfolderhandles_count);
+	config->watchfolderhandles[0] = inotify_init();
+	if (config->watchfolderhandles[0] == -1)
+	{
+		printf("failed to watch folder %s\n", config->srcdir);
+		return false;
+	}
+
+	for (unsigned int i = 0; i < config->watchfolders_count; i++)
+	{
+		config->watchfolderhandles[i + 1] = inotify_add_watch(config->watchfolderhandles[0], config->watchfolders[i], IN_CREATE | IN_MODIFY | IN_DELETE);
+		if (config->watchfolderhandles[i + 1] < 0)
+		{
+			printf("failed to watch folder %s\n", config->srcdir);
+			return false;
+		}
+
+		cma_iterate_dir(config->watchfolders[i], ".", config, true, cma_watch_add_folder_callback);
+	}
+
+	return true;
+#else
+#error unsupported platform
+#endif
 }
 
 bool cma_watch_folder_wait_for_next_change(CMakeAutoConfig *config)
 {
-	/* Unimplemented */
-	return false;
+#ifdef _WIN32
+	while (true)
+	{
+		unsigned long wait_result = WaitForMultipleObjects(config->watchfolderhandles_count, config->watchfolderhandles, FALSE, INFINITE);
+		if (wait_result == WAIT_FAILED)
+		{
+			printf("failed to wait for folder change\n");
+			return false;
+		}
+
+		if (wait_result == WAIT_TIMEOUT)
+			continue;
+
+		if (wait_result >= WAIT_OBJECT_0 && wait_result < WAIT_OBJECT_0 + config->watchfolderhandles_count)
+		{
+			if (FindNextChangeNotification(config->watchfolderhandles[wait_result - WAIT_OBJECT_0]) == FALSE)
+			{
+				printf("failed to watch folder %s\n", config->srcdir);
+				return false;
+			}
+			break;
+		}
+	}
+
+	return true;
+#elif __linux__
+	while (true)
+	{
+		char buf[4096] ALIGNAS(struct inotify_event);
+		const struct inotify_event *event;
+		unsigned long long len;
+		char *ptr;
+
+		len = read(config->watchfolderhandles[0], buf, sizeof(buf));
+		if (len == -1 && errno != EAGAIN)
+		{
+			printf("failed to read inotify event\n");
+			return false;
+		}
+
+		if (len <= 0)
+		{
+			printf("inotify event len <= 0\n");
+			return false;
+		}
+
+		for (ptr = buf; ptr < buf + len; ptr += sizeof(struct inotify_event) + event->len)
+		{
+			event = (const struct inotify_event *)ptr;
+
+			if (event->mask & (IN_CREATE | IN_DELETE))
+			{
+				if (event->mask & IN_ISDIR)
+				{
+					cma_watch_remove_all_subfolders(config);
+
+					for (unsigned int i = 0; i < config->watchfolders_count; i++)
+						cma_iterate_dir(config->watchfolders[i], ".", config, true, cma_watch_add_folder_callback);
+				}
+			}
+		}
+
+		break;
+	}
+	return true;
+#else
+#error unsupported platform
+#endif
 }
 
 bool cma_watch_folder_close(CMakeAutoConfig *config)
 {
-	/* Unimplemented */
-	return false;
+#ifdef _WIN32
+	for (unsigned int i = 0; i < config->watchfolderhandles_count; i++)
+		FindCloseChangeNotification(config->watchfolderhandles[i]);
+	return true;
+#elif __linux__
+	printf("closing watch folder\n");
+	for (unsigned int i = 1; i < config->watchfolderhandles_count; i++)
+		inotify_rm_watch(config->watchfolderhandles[0], config->watchfolderhandles[i]);
+	close(config->watchfolderhandles[0]);
+	return true;
+#else
+#error unsupported platform
+#endif
 }
 
 bool cma_init_proj(CMakeAutoConfig *config)
@@ -479,11 +644,26 @@ int main(int argc, char **argv)
 	{
 	case CMAKE_AUTO_ACTION_BUILD:
 	{
-		if (cma_init_proj(&config))
-			cma_build(&config);
+		if (config.options & CMAKE_AUTO_OPTION_AUTO_RELOAD)
+			if (!cma_watch_folder_init(&config))
+			{
+				printf("failed to init watch folder\n");
+				break;
+			}
+
+		do
+		{
+			if (cma_init_proj(&config))
+				cma_build(&config);
+
+			if (config.options & CMAKE_AUTO_OPTION_AUTO_RELOAD)
+				if (!cma_watch_folder_wait_for_next_change(&config))
+					printf("failed to wait for next change\n");
+		} while (config.options & CMAKE_AUTO_OPTION_AUTO_RELOAD);
 
 		if (config.options & CMAKE_AUTO_OPTION_AUTO_RELOAD)
-			printf("auto reload is not implemented yet\n");
+			if (!cma_watch_folder_close(&config))
+				printf("failed to close watch folder\n");
 		break;
 	}
 	case CMAKE_AUTO_ACTION_CONFIGURE:
@@ -500,7 +680,7 @@ int main(int argc, char **argv)
 		strcat_s(buf, FILE_MAX_PATH, "templates" FILE_SEPERATOR);
 		strcat_s(buf, FILE_MAX_PATH, config.template);
 
-		if (!cma_file_exists)
+		if (!cma_folder_exists(buf))
 		{
 			printf("template not found\n");
 			break;

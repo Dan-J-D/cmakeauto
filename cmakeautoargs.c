@@ -10,7 +10,7 @@ bool print_templates(const char *abspath, const char *relpath, const char *name,
 
 void cma_print_usage()
 {
-	printf("Usage: cmakeauto help|build|configure|template -b <build path> -s <source path> [-g <Generator>] [-m <Mode>] [-a <Architecture>] [-ei <Extra Init Params>] [-eb <Extra Build Params>] [-ar] [-t <Template>]\n");
+	printf("Usage: cmakeauto help|build|configure|template -b <build path> -s <source path> [-g <Generator>] [-m <Mode>] [-a <Architecture>] [-ei <Extra Init Params>] [-eb <Extra Build Params>] [-w <Directories>] [-t <Template>]\n");
 	printf("\thelp: print help message\n");
 	printf("\tbuild: build project\n");
 	printf("\tconfigure: configure project\n");
@@ -26,7 +26,7 @@ void cma_print_usage()
 	printf("\t\tx64: 64-bit\n");
 	printf("\t-ei: (Optional) This specifies extra init params to be passed to cmake.\n");
 	printf("\t-eb: (Optional) This specifies extra build params to be passed to cmake.\n");
-	printf("\t-ar: (Optional) This specifies whether to auto reload the project when source files changed.\n");
+	printf("\t-w: (Optional) This specifies the directories to be watched and will auto rebuild if a change was found.\n");
 	printf("\t-t: (Only for Template Action) This specifies the template to be used when creating a template project.\n");
 
 	char buf[FILE_MAX_PATH + 1];
@@ -170,14 +170,54 @@ bool cma_parse_args(int argc, char **argv, CMakeAutoConfig *config)
 					i++;
 				}
 			}
-			else if (stricmp(argv[i], "-ar") == 0)
-			{
-				config->options |= CMAKE_AUTO_OPTION_AUTO_RELOAD;
-			}
 			else if (stricmp(argv[i], "-h") == 0)
 			{
 				config->action = CMAKE_AUTO_ACTION_HELP;
 				return true;
+			}
+			else if (stricmp(argv[i], "-w") == 0)
+			{
+				config->options |= CMAKE_AUTO_OPTION_AUTO_RELOAD;
+
+				if (i + 1 < argc)
+				{
+					char temppath[FILE_MAX_PATH + 1];
+					char *paths = argv[i + 1];
+					while (*paths)
+					{
+						if (config->watchfolderhandles_count >= WATCHFOLDER_MAX_LEN)
+						{
+							printf("max watch folders reached\n");
+							break;
+						}
+
+						char *endpath = paths;
+						while (*endpath && *endpath != ';')
+							endpath++;
+
+						memset(temppath, 0, FILE_MAX_PATH + 1);
+						memcpy(temppath, paths, endpath - paths);
+
+						if (!cma_abspath(config->watchfolders[config->watchfolders_count], FILE_MAX_PATH, temppath))
+						{
+							printf("invalid or error happened when parsing watch folder\n");
+							return false;
+						}
+						config->watchfolders_count++;
+
+						while (*paths && *paths != ';')
+							paths++;
+						if (*paths == ';')
+							paths++;
+					}
+
+					i++;
+				}
+				else
+				{
+					printf("no watch folder specified\n");
+					return false;
+				}
 			}
 			else
 			{
