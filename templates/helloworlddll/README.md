@@ -1,7 +1,7 @@
 # Title
 description
 
-### Build with CMake For Release X64:
+### Build with CMake
 ```bash
 cmake -S src -B build
 cmake --build build
