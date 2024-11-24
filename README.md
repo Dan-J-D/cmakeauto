@@ -1,9 +1,25 @@
-# CMakeAuto
-A tool to simplify CMake Toolchain Commands
+# Cmakeauto
+A tool to simplify cmake toolchain commands
 
-### Usage:
+Added features on top of cmake:
+- Watch (auto rebuild after save)
+- Templates (default templates to use)
+
+## Compile
+Building with cmake for release x64:
 ```bash
-makeauto help|build|configure|template -b <build path> -s <source path> [-g <Generator>] [-m <Mode>] [-a <Architecture>] [-ei <Extra Init Params>] [-eb <Extra Build Params>] [-w <Directories>] [-t <Template>]
+cmake -S . -B build -A x64
+cmake --build build --config Release
+```
+
+Versus, building with cmakeauto for release x64:
+```bash
+cmakeauto build -s .
+```
+
+## Usage
+```bash
+cmakeauto help|build|configure|template -b <build path> -s <source path> [-g <Generator>] [-m <Mode>] [-a <Architecture>] [-ei <Extra Init Params>] [-eb <Extra Build Params>] [-w <Directories>] [-t <Template>]
         help: print help message
         build: build project
         configure: configure project
@@ -27,15 +43,5 @@ Parameters:
 Templates:
         helloworld
         helloworlddll
-```
-
-### Build with CMake For Release X64:
-```bash
-cmake -S . -B build -A x64
-cmake --build build --config Release
-```
-
-### Build with CMakeAuto
-```bash
-cmakeauto build -s .
+        helloworlddriver (windows only)
 ```
