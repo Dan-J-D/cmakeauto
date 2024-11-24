@@ -1,13 +1,14 @@
-# Title
-description
+# Hello World
+This is a hello world base template
 
-### Build with CMake
+## Compile
+Build with cmake
 ```bash
 cmake -S src -B build
 cmake --build build
 ```
 
-### Build with CMakeAuto
+Build with cmakeauto
 ```bash
 cmakeauto build
 ```
